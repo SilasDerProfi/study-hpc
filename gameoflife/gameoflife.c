@@ -66,10 +66,12 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
       int offsetX = pX * rectangelX;
       int offsetY = pY * rectangleY;
          
+      
+      #pragma omp parallel for collapse(2) schedule(static, 1)
       for (int y = offsetY; y < offsetY + pY; y++) {
         for (int x = offsetX; x <  offsetX + pX; x++) {
           int neighbourCount = 0;
-          
+          printf("%d;%d\n", x, y);
           for (int y1 = y - 1; y1 <= y + 1; y1++)
             for (int x1 = x - 1; x1 <= x + 1; x1++)
               if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
