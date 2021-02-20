@@ -64,7 +64,7 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
   for(int rectangelX = 0; rectangelX < w / pX; rectangelX++) {
     for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
       int offsetX = pX * rectangelX;
-      int offsetY = pY * w * rectangleY;
+      int offsetY = pY * rectangleY;
          
       for (int y = offsetY; y < offsetY + pY; y++) {
         for (int x = offsetX; x <  offsetX + pX; x++) {
@@ -120,7 +120,7 @@ void game(int w, int h, int pX, int pY) {
 }
  
 int main(int c, char **v) {
-  int w = 0, h = 0, pX = 0, pY = 0;
+  int w = 30, h = 30, pX = 3, pY = 3;
   if (c > 1) w = atoi(v[1]); ///< read width
   if (c > 2) h = atoi(v[2]); ///< read height
 
@@ -142,6 +142,6 @@ int main(int c, char **v) {
   if (pX <= 0) pX = 3; ///< default width
   if (pY <= 0) pY = 3; ///< default height
 
-  printf("%d %d", pX,pY);
+  printf("%d %d\n", pX,pY);
   game(w, h, pX, pY);
 }
