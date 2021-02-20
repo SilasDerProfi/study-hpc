@@ -74,8 +74,25 @@ void evolve(double* currentfield, double* newfield, int w, int h) {
   int x,y;
   for (y = 0; y < h; y++) {
     for (x = 0; x < w; x++) {
-      int neighbourCount = coutLifingsPeriodic(currentfield, x, y, w, h);
-      newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
+      // int neighbourCount = coutLifingsPeriodic(currentfield, x, y, w, h);
+      // newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
+
+      int alive = 0;
+
+        int x1, y1;
+        for (y1 = y - 1; y1 <= y + 1; y1++)
+          for (x1 = x - 1; x1 <= x + 1; x1++)
+            if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
+              alive++;
+
+        if (currentfield[calcIndex(w, x, y)] && (alive == 2 || alive == 3))
+          newfield[calcIndex(w, x, y)] = 1;
+        else if (!currentfield[calcIndex(w, x, y)] && alive == 3)
+          newfield[calcIndex(w, x, y)] = 1;
+        else if (currentfield[calcIndex(w, x, y)] && (alive > 3 || alive < 2))
+          newfield[calcIndex(w, x, y)] = 0;
+        else
+          newfield[calcIndex(w, x, y)] = 0;
     }
   }
 }
