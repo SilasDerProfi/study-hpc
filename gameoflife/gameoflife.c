@@ -110,10 +110,27 @@ void game(int w, int h) {
 }
  
 int main(int c, char **v) {
-  int w = 0, h = 0;
+  int w = 0, h = 0, pX = 0, pY = 0;
   if (c > 1) w = atoi(v[1]); ///< read width
   if (c > 2) h = atoi(v[2]); ///< read height
+
+  if (c > 3) pX = atoi(v[3]); ///< read pX
+  if (c > 4) pY = atoi(v[4]); ///< read pY
+
+  if(w % pX != 0) {
+    print("Horizontal participation value is not valid.\n");
+    return;
+  }
+
+  if(h % pY != 0){
+    print("Vertical participation value is not valid.\n");
+    return;
+  }
+
   if (w <= 0) w = 30; ///< default width
   if (h <= 0) h = 30; ///< default height
+  if (pX <= 0) pX = 3; ///< default width
+  if (pY <= 0) pY = 3; ///< default height
+
   game(w, h);
 }
