@@ -90,7 +90,7 @@ void game(int w, int h, int pX, int pY) {
   filling(currentfield, w, h);
   long t;
   for (t=0;t<TimeSteps;t++) {
-    show(currentfield, w, h);
+    //show(currentfield, w, h);
     evolve(currentfield, newfield, w, h);
     
     printf("%ld timestep\n",t);
@@ -117,14 +117,14 @@ int main(int c, char **v) {
   if (c > 3) pX = atoi(v[3]); ///< read pX
   if (c > 4) pY = atoi(v[4]); ///< read pY
 
-  if(w % pX != 0) {
-    print("Horizontal participation value is not valid.\n");
-    return;
+  if(pX == 0 || w % pX != 0) {
+    printf("Horizontal participation value is not valid.\n");
+    return -1;
   }
 
-  if(h % pY != 0){
-    print("Vertical participation value is not valid.\n");
-    return;
+  if(pY == 0 || h % pY != 0){
+    printf("Vertical participation value is not valid.\n");
+    return -1;
   }
 
   if (w <= 0) w = 30; ///< default width
@@ -132,5 +132,6 @@ int main(int c, char **v) {
   if (pX <= 0) pX = 3; ///< default width
   if (pY <= 0) pY = 3; ///< default height
 
+  printf("%d %d", pX,pY);
   game(w, h, pX, pY);
 }
