@@ -59,17 +59,25 @@ void show(double* currentfield, int w, int h) {
   fflush(stdout);
 }
 
-void evolve(double* currentfield, double* newfield, int w, int h) {
-  for (int y = 0; y < h; y++) {
-    for (int x = 0; x < w; x++) {
-      int neighbourCount = 0;
-      
-      for (int y1 = y - 1; y1 <= y + 1; y1++)
-        for (int x1 = x - 1; x1 <= x + 1; x1++)
-          if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
-            neighbourCount++;
+void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY) {
 
-       newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
+  for(int rectangelX = 0; rectangelX < w / pX; rectangelX++) {
+    for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
+      int offsetX = pX * rectangelX;
+      int offsetY = pY * w * rectangleY;
+         
+      for (int y = offsetY; y < offsetY + pY; y++) {
+        for (int x = offsetX; x <  offsetX + pX; x++) {
+          int neighbourCount = 0;
+          
+          for (int y1 = y - 1; y1 <= y + 1; y1++)
+            for (int x1 = x - 1; x1 <= x + 1; x1++)
+              if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
+                neighbourCount++;
+
+          newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
+        }
+      }
     }
   }
 }
@@ -90,8 +98,10 @@ void game(int w, int h, int pX, int pY) {
   filling(currentfield, w, h);
   long t;
   for (t=0;t<TimeSteps;t++) {
+    
     //show(currentfield, w, h);
-    evolve(currentfield, newfield, w, h);
+    
+    evolve(currentfield, newfield, w, h, pX, pY);
     
     printf("%ld timestep\n",t);
     writeVTK2(t,currentfield,"gol", w, h);
