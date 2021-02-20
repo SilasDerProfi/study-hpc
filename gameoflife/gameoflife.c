@@ -71,7 +71,7 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
       for (int y = offsetY; y < offsetY + pY; y++) {
         for (int x = offsetX; x <  offsetX + pX; x++) {
           int neighbourCount = 0;
-          printf("%d;%d\n", x, y);
+
           for (int y1 = y - 1; y1 <= y + 1; y1++)
             for (int x1 = x - 1; x1 <= x + 1; x1++)
               if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
@@ -122,28 +122,24 @@ void game(int w, int h, int pX, int pY) {
 }
  
 int main(int c, char **v) {
-  int w = 30, h = 30, pX = 3, pY = 3;
-  if (c > 1) w = atoi(v[1]); ///< read width
-  if (c > 2) h = atoi(v[2]); ///< read height
+  int nX = 0, nY = 0, pX = 0, pY = 0;
+  if (c > 1) TimeSteps = atoi(v[1]); ///< read timesteps
+  if (c > 2) nX = atoi(v[2]); ///< read nX
+  if (c > 3) nY = atoi(v[3]); ///< read nY
 
-  if (c > 3) pX = atoi(v[3]); ///< read pX
-  if (c > 4) pY = atoi(v[4]); ///< read pY
+  if (c > 4) pX = atoi(v[4]); ///< read pX
+  if (c > 5) pY = atoi(v[5]); ///< read pY
 
-  if(pX == 0 || w % pX != 0) {
-    printf("Horizontal participation value is not valid.\n");
-    return -1;
-  }
 
-  if(pY == 0 || h % pY != 0){
-    printf("Vertical participation value is not valid.\n");
-    return -1;
-  }
-
-  if (w <= 0) w = 30; ///< default width
-  if (h <= 0) h = 30; ///< default height
+  if (nX <= 0) nX = 10; ///< default nX
+  if (nY <= 0) nY = 10; ///< default nY
   if (pX <= 0) pX = 3; ///< default width
   if (pY <= 0) pY = 3; ///< default height
 
-  printf("%d %d\n", pX,pY);
+  int w = nX * pX;
+  int h = nY * pY;
+
+  printf("Start Game of Life with w=%d h=%d\n", w, h);
+
   game(w, h, pX, pY);
 }
