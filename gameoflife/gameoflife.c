@@ -60,16 +60,14 @@ void show(double* currentfield, int w, int h) {
 }
 
 void evolve(double* currentfield, double* newfield, int w, int h) {
-  int x,y;
-  for (y = 0; y < h; y++) {
-    for (x = 0; x < w; x++) {
+  for (int y = 0; y < h; y++) {
+    for (int x = 0; x < w; x++) {
       int neighbourCount = 0;
-
-        int x1, y1;
-        for (y1 = y - 1; y1 <= y + 1; y1++)
-          for (x1 = x - 1; x1 <= x + 1; x1++)
-            if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
-              neighbourCount++;
+      
+      for (int y1 = y - 1; y1 <= y + 1; y1++)
+        for (int x1 = x - 1; x1 <= x + 1; x1++)
+          if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
+            neighbourCount++;
 
        newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
     }
