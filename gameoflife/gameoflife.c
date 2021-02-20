@@ -81,7 +81,7 @@ void filling(double* currentfield, int w, int h) {
   }
 }
  
-void game(int w, int h) {
+void game(int w, int h, int pX, int pY) {
   double *currentfield = calloc(w*h, sizeof(double));
   double *newfield     = calloc(w*h, sizeof(double));
   
@@ -132,5 +132,5 @@ int main(int c, char **v) {
   if (pX <= 0) pX = 3; ///< default width
   if (pY <= 0) pY = 3; ///< default height
 
-  game(w, h);
+  game(w, h, pX, pY);
 }
