@@ -59,15 +59,23 @@ void show(double* currentfield, int w, int h) {
   fflush(stdout);
 }
  
- 
+
+ int coutLifingsPeriodic(unsigned* currentfield, int x , int y, int w, int h) {
+   int n = 0;
+   for (int y1 = y - 1; y1 <= y + 1; y1++) {
+     for (int x1 = x - 1; x1 <= x + 1; x1++) {
+       if (currentfield[calcIndex(w, (x1 + w) % w, (y1 + h) % h)])
+        n++;
+        }
+
+   }return n;}
+
 void evolve(double* currentfield, double* newfield, int w, int h) {
   int x,y;
   for (y = 0; y < h; y++) {
     for (x = 0; x < w; x++) {
-      
-      //TODO FIXME impletent rules and assign new value
-      
-      newfield[calcIndex(w, x,y)] = !newfield[calcIndex(w, x,y)];
+      int neighbourCount = coutLifingsPeriodic(currentfield, x, y, w, h);
+      newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
     }
   }
 }
