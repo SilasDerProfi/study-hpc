@@ -1,0 +1,23 @@
+name: Make
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: ./configure
+    - name: make
+      run: gameoflife/make
+    - name: make check
+      run: gameoflife/make check
+    - name: make distcheck
+      run: gameoflife/make distcheck
