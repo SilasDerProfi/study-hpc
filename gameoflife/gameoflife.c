@@ -8,6 +8,8 @@
 #include <math.h>
 #include <sys/time.h>
 
+#include <omp.h>
+
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
 long TimeSteps = 100;
@@ -28,7 +30,7 @@ void writeParallelVTK(long timestep, int w, int h, int px, int py)
   fprintf(fp, "<PCellData Scalars=\"%s\">\n", "gol");
   fprintf(fp, "<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", "gol");
   fprintf(fp, "</PCellData>\n");
-  for (int i = 0; i < px * py; i++)
+  for (int i = 0; i < nx * ny; i++)
   {
     int xOffset = (i % nx) * px;
 	int yOffset = (i / nx) * py;
@@ -89,11 +91,11 @@ void show(double* currentfield, int w, int h) {
 }
 
 void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY, long t) {
-
+  writeParallelVTK(t, w, h, pX, pY);
   #pragma omp parallel for collapse(2) schedule(static, 1) 
-  for(int rectangelX = 0; rectangelX < w / pX; rectangelX++) {
+  for(int rectangleX = 0; rectangleX < w / pX; rectangleX++) {
     for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
-      int offsetX = pX * rectangelX;
+      int offsetX = pX * rectangleX;
       int offsetY = pY * rectangleY;               
       for (int y = offsetY; y < offsetY + pY; y++) {
         for (int x = offsetX; x <  offsetX + pX; x++) {
@@ -108,7 +110,7 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
         }
       }
       #pragma omp critical
-      writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangelX * (w / pX)) + rectangleY);
+      writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
     }
   }
 }
