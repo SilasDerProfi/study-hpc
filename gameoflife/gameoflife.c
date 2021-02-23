@@ -12,6 +12,35 @@
 
 long TimeSteps = 100;
 
+void writeParallelVTK(long timestep, int w, int h, int nx, int ny, int px, int py)
+{
+  char filename[2048];
+
+  snprintf(filename, sizeof(filename), "%s-%05ld%s", "parallel", timestep, ".pvti");
+  FILE *fp = fopen(filename, "w");
+
+  fprintf(fp, "<?xml version=\"1.0\"?>\n");
+  fprintf(fp, "<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
+  fprintf(fp, "<PImageData WholeExtent=\"%d %d %d %d %d %d\" Origin=\"0 0 0\" Spacing=\"%le %le %le\">\n", 0, w, 0, h, 0, 0, 1.0, 1.0, 0.0);
+  fprintf(fp, "<PCellData Scalars=\"%s\">\n", "gol");
+  fprintf(fp, "<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", "gol");
+  fprintf(fp, "</PCellData>\n");
+  for (int i = 0; i < thread_num; i++)
+  {
+    int threadsx = thread_num / 2, threadsy = thread_num / 2;
+    int threadh = h / threadsy, threadw = w / threadsx;
+
+    int xOffset = (i % threadsx) * threadw;
+	int yOffset = (i / threadsx) * threadh;
+
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s-%d-%05ld%s\"/>", xOffset, xOffset + threadw, yOffset, yOffset + threadh, 0, 0, "gol", i, timestep, ".vti");
+  }
+
+  fprintf(fp, "</PImageData>\n");
+  fprintf(fp, "</VTKFile>\n");
+  fclose(fp);
+}
+
 void writeVTK2(long timestep, double *data, char prefix[1024], int w, int h, int Gw, int offsetX, int offsetY, int num) {
   char filename[2048];  
   int x,y; 
