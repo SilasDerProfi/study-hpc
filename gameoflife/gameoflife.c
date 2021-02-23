@@ -12,16 +12,16 @@
 
 long TimeSteps = 100;
 
-void writeVTK2(long timestep, double *data, char prefix[1024], int w, int h) {
+void writeVTK2(long timestep, double *data, char prefix[1024], int w, int h, int Gw, int offsetX, int offsetY, int num) {
   char filename[2048];  
   int x,y; 
   
-  int offsetX=0;
-  int offsetY=0;
+  //int offsetX=0;
+  //int offsetY=0;
   float deltax=1.0;
   long  nxy = w * h * sizeof(float);  
 
-  snprintf(filename, sizeof(filename), "%s-%05ld%s", prefix, timestep, ".vti");
+  snprintf(filename, sizeof(filename), "%s-%d-%05ld%s", prefix, num, timestep, ".vti");
   FILE* fp = fopen(filename, "w");
 
   fprintf(fp, "<?xml version=\"1.0\"?>\n");
@@ -35,9 +35,9 @@ void writeVTK2(long timestep, double *data, char prefix[1024], int w, int h) {
   fprintf(fp, "_");
   fwrite((unsigned char*)&nxy, sizeof(long), 1, fp);
 
-  for (y = 0; y < h; y++) {
-    for (x = 0; x < w; x++) {
-      float value = data[calcIndex(h, x,y)];
+  for (y = offsetY; y < h + offsetY; y++) {
+    for (x = offsetX; x < w + offsetX; x++) {
+      float value = data[calcIndex(Gw, x,y)];
       fwrite((unsigned char*)&value, sizeof(float), 1, fp);
     }
   }
@@ -59,15 +59,13 @@ void show(double* currentfield, int w, int h) {
   fflush(stdout);
 }
 
-void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY) {
+void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY, long t) {
 
+  #pragma omp parallel for collapse(2) schedule(static, 1) 
   for(int rectangelX = 0; rectangelX < w / pX; rectangelX++) {
     for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
       int offsetX = pX * rectangelX;
-      int offsetY = pY * rectangleY;
-         
-      
-      #pragma omp parallel for collapse(2) schedule(static, 1)
+      int offsetY = pY * rectangleY;               
       for (int y = offsetY; y < offsetY + pY; y++) {
         for (int x = offsetX; x <  offsetX + pX; x++) {
           int neighbourCount = 0;
@@ -80,6 +78,8 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
           newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
         }
       }
+      #pragma omp critical
+      writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangelX * (w / pX)) + rectangleY);
     }
   }
 }
@@ -103,10 +103,10 @@ void game(int w, int h, int pX, int pY) {
     
     //show(currentfield, w, h);
     
-    evolve(currentfield, newfield, w, h, pX, pY);
+    evolve(currentfield, newfield, w, h, pX, pY, t);
     
     printf("%ld timestep\n",t);
-    writeVTK2(t,currentfield,"gol", w, h);
+    //writeVTK2(t,currentfield,"gol", w, h);
     
     usleep(200000);
 
