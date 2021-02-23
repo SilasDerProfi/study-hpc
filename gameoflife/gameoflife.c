@@ -12,8 +12,11 @@
 
 long TimeSteps = 100;
 
-void writeParallelVTK(long timestep, int w, int h, int nx, int ny, int px, int py)
+void writeParallelVTK(long timestep, int w, int h, int px, int py)
 {
+	int nx = w / px; 
+	int ny = h / py;
+	
   char filename[2048];
 
   snprintf(filename, sizeof(filename), "%s-%05ld%s", "parallel", timestep, ".pvti");
@@ -25,15 +28,12 @@ void writeParallelVTK(long timestep, int w, int h, int nx, int ny, int px, int p
   fprintf(fp, "<PCellData Scalars=\"%s\">\n", "gol");
   fprintf(fp, "<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", "gol");
   fprintf(fp, "</PCellData>\n");
-  for (int i = 0; i < thread_num; i++)
+  for (int i = 0; i < px * py; i++)
   {
-    int threadsx = thread_num / 2, threadsy = thread_num / 2;
-    int threadh = h / threadsy, threadw = w / threadsx;
+    int xOffset = (i % nx) * px;
+	int yOffset = (i / nx) * py;
 
-    int xOffset = (i % threadsx) * threadw;
-	int yOffset = (i / threadsx) * threadh;
-
-    fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s-%d-%05ld%s\"/>", xOffset, xOffset + threadw, yOffset, yOffset + threadh, 0, 0, "gol", i, timestep, ".vti");
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s-%d-%05ld%s\"/>", xOffset, xOffset + px, yOffset, yOffset + py, 0, 0, "gol", i, timestep, ".vti");
   }
 
   fprintf(fp, "</PImageData>\n");
