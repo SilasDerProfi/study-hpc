@@ -92,7 +92,7 @@ void show(double* currentfield, int w, int h) {
 
 void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY, long t) {
   writeParallelVTK(t, w, h, pX, pY);
-  #pragma omp parallel for collapse(2) schedule(static, 1) 
+  #pragma omp parallel for collapse(2) //schedule(static, 1) 
   for(int rectangleX = 0; rectangleX < w / pX; rectangleX++) {
     for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
       int offsetX = pX * rectangleX;
@@ -109,7 +109,6 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
           newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
         }
       }
-      #pragma omp critical
       writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
     }
   }
