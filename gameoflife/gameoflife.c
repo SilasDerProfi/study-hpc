@@ -131,7 +131,7 @@ void game(int w, int h, int pX, int pY) {
   long t;
   for (t=0;t<TimeSteps;t++) {
     
-    //show(currentfield, w, h);
+    //show(currentfield, w, h); 
     
     evolve(currentfield, newfield, w, h, pX, pY, t);
     
