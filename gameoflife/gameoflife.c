@@ -139,7 +139,7 @@ void game(int w, int h, int pX, int pY) {
     printf("%ld timestep\n",t);
     //writeVTK2(t,currentfield,"gol", w, h);
     
-    usleep(200000);
+    //usleep(200000);
 
     //SWAP
     double *temp = currentfield;
