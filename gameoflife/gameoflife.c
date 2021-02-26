@@ -91,7 +91,7 @@ void show(double* currentfield, int w, int h) {
 }
 
 void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY, long t) {
-  writeParallelVTK(t, w, h, pX, pY);
+  //writeParallelVTK(t, w, h, pX, pY);
   #pragma omp parallel for collapse(2) //schedule(static, 1) 
   for(int rectangleX = 0; rectangleX < w / pX; rectangleX++) {
     for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
@@ -109,7 +109,7 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
           newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
         }
       }
-      writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
+      //writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
     }
   }
 }
@@ -135,7 +135,7 @@ void game(int w, int h, int pX, int pY) {
     
     evolve(currentfield, newfield, w, h, pX, pY, t);
     
-    printf("%ld timestep\n",t);
+    //printf("%ld timestep\n",t);
     //writeVTK2(t,currentfield,"gol", w, h);
     
     //usleep(200000);
@@ -169,7 +169,7 @@ int main(int c, char **v) {
   int w = nX * pX;
   int h = nY * pY;
 
-  printf("Start Game of Life with w=%d h=%d\n", w, h);
+  //printf("Start Game of Life with w=%d h=%d\n", w, h);
 
   game(w, h, pX, pY);
 }
