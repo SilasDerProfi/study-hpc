@@ -1,0 +1,2 @@
+rm *.pvti
+rm *.vti
