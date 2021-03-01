@@ -123,9 +123,9 @@ void filling(double* currentfield, int w, int h, char *path) {
     }
     return;
   }
-  FILE *file = fopen(path, "r");
+  FILE *file = fopen("rl.rle", "r");
   if(file == 0){
-    printf("Wrong size");
+    printf("File not found");
     exit(0);
   }
 
@@ -152,7 +152,7 @@ void filling(double* currentfield, int w, int h, char *path) {
 
   if(x != w || y != h){
     fclose(file);
-    printf("No File");
+    printf("Wrong sizes");
     exit(0);
   }
 
@@ -160,7 +160,8 @@ void filling(double* currentfield, int w, int h, char *path) {
 
   x = 0;
   y = 0;
-  while((c = getc(file)) != '!'){
+  c = getc(file);
+  while(c != '!'){
     while(c != '$' && c != '!'){
       int rl = 1;
       if(c >= '0' && c <= '9'){
@@ -168,7 +169,7 @@ void filling(double* currentfield, int w, int h, char *path) {
         while(c != 'b' && c != 'o'){
           rl = rl * 10 + c - '0';
           c = getc(file);    
-          if(c == '\n'){
+          while(c == '\n'){
             c = getc(file);
           }
         }
@@ -182,6 +183,13 @@ void filling(double* currentfield, int w, int h, char *path) {
         c = getc(file);
       }
     }
+    if(c == '$'){
+      c = getc(file);
+      if(c == '\n'){
+        c = getc(file);
+      }
+    }
+    x = 0;
     y++;
   }
 }
@@ -211,7 +219,7 @@ void game(int w, int h, int pX, int pY, char *path) {
     newfield = temp;
   }
   
-  free(currentfield);
+  //free(currentfield);
   free(newfield);
   
 }
@@ -227,12 +235,20 @@ int main(int c, char **v) {
   if (c > 5) pY = atoi(v[5]); ///< read pY
 
   if (c > 6) path = v[6]; ///< read path
+  
+  
+  path = (char*) calloc(6, sizeof(char));
+  path[0] = 'r';
+  path[1] = 'l';
+  path[2] = '.';
+  path[3] = 'r';
+  path[4] = 'l';
+  path[5] = 'e';
 
-
-  if (nX <= 0) nX = 10; ///< default nX
-  if (nY <= 0) nY = 10; ///< default nY
-  if (pX <= 0) pX = 3; ///< default width
-  if (pY <= 0) pY = 3; ///< default height
+  if (nX <= 0) nX = 1; ///< default nX
+  if (nY <= 0) nY = 1; ///< default nY
+  if (pX <= 0) pX = 32; ///< default width
+  if (pY <= 0) pY = 32; ///< default height
 
   int w = nX * pX;
   int h = nY * pY;
