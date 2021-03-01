@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <setjmp.h>
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
 #include <sys/time.h>
+
 
 #include <omp.h>
 
@@ -124,7 +125,8 @@ void filling(double* currentfield, int w, int h, char *path) {
   }
   FILE *file = fopen(path, "r");
   if(file == 0){
-    throw runtime_error("No File!");
+    printf("Wrong size");
+    exit(0);
   }
 
   while(getc(file) == '#'){
@@ -150,7 +152,8 @@ void filling(double* currentfield, int w, int h, char *path) {
 
   if(x != w || y != h){
     fclose(file);
-    throw new runtime_error("Wrong parameter");
+    printf("No File");
+    exit(0);
   }
 
   while(getc(file) != '\n');
@@ -159,18 +162,25 @@ void filling(double* currentfield, int w, int h, char *path) {
   y = 0;
   while((c = getc(file)) != '!'){
     while(c != '$' && c != '!'){
+      int rl = 1;
       if(c >= '0' && c <= '9'){
-          int rl = 0;
-          while(c != 'b' && c != 'o'){
+        rl = 0;
+        while(c != 'b' && c != 'o'){
           rl = rl * 10 + c - '0';
-          c = getc(file);
+          c = getc(file);    
+          if(c == '\n'){
+            c = getc(file);
+          }
         }
-      } else {
+      } 
+      for(int index = 0; index < rl; index++) {
         currentfield[calcIndex(w, x, y)] = c == 'o';
         x++;
       }
       c = getc(file);
-
+      if(c == '\n'){
+        c = getc(file);
+      }
     }
     y++;
   }
@@ -216,7 +226,7 @@ int main(int c, char **v) {
   if (c > 4) pX = atoi(v[4]); ///< read pX
   if (c > 5) pY = atoi(v[5]); ///< read pY
 
-  if (c > 6) path = atoi(v[6]); ///< read path
+  if (c > 6) path = v[6]; ///< read path
 
 
   if (nX <= 0) nX = 10; ///< default nX
