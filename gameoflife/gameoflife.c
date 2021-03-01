@@ -91,7 +91,7 @@ void show(double* currentfield, int w, int h) {
 }
 
 void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY, long t) {
-  //writeParallelVTK(t, w, h, pX, pY);
+  writeParallelVTK(t, w, h, pX, pY);
   #pragma omp parallel for collapse(2) //schedule(static, 1) 
   for(int rectangleX = 0; rectangleX < w / pX; rectangleX++) {
     for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
@@ -109,25 +109,80 @@ void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY
           newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
         }
       }
-      //writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
+      writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
     }
   }
 }
  
-void filling(double* currentfield, int w, int h) {
-  int i;
-  for (i = 0; i < h*w; i++) {
-    currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0; ///< init domain randomly
+void filling(double* currentfield, int w, int h, char *path) {
+  if (path == 0){
+    int i;
+    for (i = 0; i < h*w; i++) {
+      currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0; ///< init domain randomly
+    }
+    return;
+  }
+  FILE *file = fopen(path, "r");
+  if(file == 0){
+    throw runtime_error("No File!");
+  }
+
+  while(getc(file) == '#'){
+    while(getc(file) != '\n');
+  }
+
+  char c;
+  ///x
+  while(getc(file) != '=');
+  getc(file);
+  int x = 0;
+  while((c = getc(file)) != ','){
+    x = x * 10 + c - '0';
+  }
+
+  ///y
+  while(getc(file) != '=');
+  getc(file);
+  int y = 0;
+  while((c = getc(file)) != ','){
+    y = y * 10 + c - '0';
+  }
+
+  if(x != w || y != h){
+    fclose(file);
+    throw new runtime_error("Wrong parameter");
+  }
+
+  while(getc(file) != '\n');
+
+  x = 0;
+  y = 0;
+  while((c = getc(file)) != '!'){
+    while(c != '$' && c != '!'){
+      if(c >= '0' && c <= '9'){
+          int rl = 0;
+          while(c != 'b' && c != 'o'){
+          rl = rl * 10 + c - '0';
+          c = getc(file);
+        }
+      } else {
+        currentfield[calcIndex(w, x, y)] = c == 'o';
+        x++;
+      }
+      c = getc(file);
+
+    }
+    y++;
   }
 }
  
-void game(int w, int h, int pX, int pY) {
+void game(int w, int h, int pX, int pY, char *path) {
   double *currentfield = calloc(w*h, sizeof(double));
   double *newfield     = calloc(w*h, sizeof(double));
   
   //printf("size unsigned %d, size long %d\n",sizeof(float), sizeof(long));
   
-  filling(currentfield, w, h);
+  filling(currentfield, w, h, path);
   long t;
   for (t=0;t<TimeSteps;t++) {
     
@@ -153,12 +208,15 @@ void game(int w, int h, int pX, int pY) {
  
 int main(int c, char **v) {
   int nX = 0, nY = 0, pX = 0, pY = 0;
+  char *path = 0;
   if (c > 1) TimeSteps = atoi(v[1]); ///< read timesteps
   if (c > 2) nX = atoi(v[2]); ///< read nX
   if (c > 3) nY = atoi(v[3]); ///< read nY
 
   if (c > 4) pX = atoi(v[4]); ///< read pX
   if (c > 5) pY = atoi(v[5]); ///< read pY
+
+  if (c > 6) path = atoi(v[6]); ///< read path
 
 
   if (nX <= 0) nX = 10; ///< default nX
@@ -171,5 +229,5 @@ int main(int c, char **v) {
 
   //printf("Start Game of Life with w=%d h=%d\n", w, h);
 
-  game(w, h, pX, pY);
+  game(w, h, pX, pY, path);
 }
