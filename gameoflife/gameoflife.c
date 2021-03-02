@@ -123,7 +123,7 @@ void filling(double* currentfield, int w, int h, char *path) {
     }
     return;
   }
-  FILE *file = fopen("rl.rle", "r");
+  FILE *file = fopen(path, "r");
   if(file == 0){
     printf("File not found");
     exit(0);
@@ -219,7 +219,7 @@ void game(int w, int h, int pX, int pY, char *path) {
     newfield = temp;
   }
   
-  //free(currentfield);
+  free(currentfield);
   free(newfield);
   
 }
@@ -236,19 +236,10 @@ int main(int c, char **v) {
 
   if (c > 6) path = v[6]; ///< read path
   
-  
-  path = (char*) calloc(6, sizeof(char));
-  path[0] = 'r';
-  path[1] = 'l';
-  path[2] = '.';
-  path[3] = 'r';
-  path[4] = 'l';
-  path[5] = 'e';
-
-  if (nX <= 0) nX = 1; ///< default nX
-  if (nY <= 0) nY = 1; ///< default nY
-  if (pX <= 0) pX = 32; ///< default width
-  if (pY <= 0) pY = 32; ///< default height
+  if (nX <= 0) nX = 2; ///< default nX
+  if (nY <= 0) nY = 2; ///< default nY
+  if (pX <= 0) pX = 8; ///< default width
+  if (pY <= 0) pY = 8; ///< default height
 
   int w = nX * pX;
   int h = nY * pY;
