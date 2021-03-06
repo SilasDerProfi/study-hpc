@@ -26,3 +26,6 @@
 2048 x 2048 = 16.778.032 B = 16.778 KB = 17 MB
 4096 x 4096 = 67.109.680 B = 67.110 KB = 67 MB
 ```
+
+## Speedup chart
+![speedup chart](csv/speedup-chart.png)
