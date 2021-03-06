@@ -1,6 +1,18 @@
 #include <openmpi/mpi.h>
 #include <stdio.h>
 
+void evolve(){
+    
+}
+
+void filling(){
+
+}
+
+void game(){
+
+}
+
 int main(int argc, char* argv[]) {
     int rank, size, i;    
 
