@@ -91,11 +91,12 @@ void show(double* currentfield, int w, int h) {
   fflush(stdout);
 }
 
+// anpassung
 void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY, long t) {
   writeParallelVTK(t, w, h, pX, pY);
-  #pragma omp parallel for collapse(2) //schedule(static, 1) 
-  for(int rectangleX = 0; rectangleX < w / pX; rectangleX++) {
-    for(int rectangleY = 0; rectangleY < h / pY; rectangleY++) {
+  #pragma omp parallel for num_threads(pX * pY) collapse(2) //schedule(static, 1) 
+  for(int rectangleY = h/pY - 1 ; rectangleY >= 0; rectangleY--) {
+    for(int rectangleX = 0; rectangleX < w / pX; rectangleX++) {
       int offsetX = pX * rectangleX;
       int offsetY = pY * rectangleY;               
       for (int y = offsetY; y < offsetY + pY; y++) {
