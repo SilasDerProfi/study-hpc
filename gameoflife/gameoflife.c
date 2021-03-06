@@ -94,25 +94,27 @@ void show(double* currentfield, int w, int h) {
 // anpassung
 void evolve(double* currentfield, double* newfield, int w, int h, int pX, int pY, long t) {
   writeParallelVTK(t, w, h, pX, pY);
-  #pragma omp parallel for num_threads(pX * pY) collapse(2) //schedule(static, 1) 
-  for(int rectangleY = h/pY - 1 ; rectangleY >= 0; rectangleY--) {
-    for(int rectangleX = 0; rectangleX < w / pX; rectangleX++) {
-      int offsetX = pX * rectangleX;
-      int offsetY = pY * rectangleY;               
-      for (int y = offsetY; y < offsetY + pY; y++) {
-        for (int x = offsetX; x <  offsetX + pX; x++) {
-          int neighbourCount = 0;
+  #pragma omp parallel num_threads((h/pY) * (w/pX)) 
+  {
+    int threadId = omp_get_thread_num();
+    int nX = w/pX; 
+    int nY = h/pY;
+    int rectangleY = (nY-1) - threadId/nX;
+    int rectangleX = threadId % nX; 
+    int offsetX = pX * rectangleX;
+    int offsetY = pY * rectangleY;               
+    for (int y = offsetY; y < offsetY + pY; y++) {
+      for (int x = offsetX; x < offsetX + pX; x++) {
+        int neighbourCount = 0;
+        for (int y1 = y - 1; y1 <= y + 1; y1++)
+          for (int x1 = x - 1; x1 <= x + 1; x1++)
+            if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
+              neighbourCount++;
 
-          for (int y1 = y - 1; y1 <= y + 1; y1++)
-            for (int x1 = x - 1; x1 <= x + 1; x1++)
-              if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h && (x1 != x || y1 != y) && currentfield[calcIndex(w, x1, y1)])
-                neighbourCount++;
-
-          newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
-        }
+        newfield[calcIndex(w, x,y)] = neighbourCount == 3 || currentfield[calcIndex(w, x,y)] && neighbourCount == 2;
       }
-      writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
     }
+    writeVTK2(t,currentfield,"gol", pX, pY, w, offsetX, offsetY, (rectangleY * (w / pX)) + rectangleX);
   }
 }
  
