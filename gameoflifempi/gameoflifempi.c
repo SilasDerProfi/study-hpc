@@ -76,7 +76,7 @@ void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int 
 }
 
 void filling(double* currentfield, int h, int w, int seed){
-    srand(seed * 59);
+    srand(seed * 59 + 984);
     for (size_t i = 0; i < h * w; i++) {
       currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0;
     }
@@ -92,7 +92,6 @@ void evolve(double* currentField, double* nextField, int h, int w) {
             if (x1 >= 0 && x1 < w && y1 >= -1 && y1 <= h && (x1 != x || y1 != y) && currentField[calcIndex(w, x1, y1) + w])
               neighbourCount++;
 
-// nextField[calcIndex(w, x,y) + w] = neighbourCount;
         nextField[calcIndex(w, x,y) + w] = neighbourCount == 3 || currentField[calcIndex(w, x,y) + w] && neighbourCount == 2;
       }
     }
@@ -111,6 +110,22 @@ void game_step(double* currentField, double* nextField, int partialHeight, int w
     evolve(currentField, nextField, partialHeight, w);
 }
 
+bool check_identical(double* currentField, double* nextField, int partialHeight, int w, int size) {
+    int identical = 1;
+    for (size_t y = 0; y < partialHeight; y++) {
+        for (size_t x = 0; x < w; x++) {
+            if(currentField[calcIndex(w, x, y + 1)] != nextField[calcIndex(w, x, y + 1)]) {
+                identical = 0;
+            }
+        }
+    }
+
+    int allIdentical;
+    MPI_Allreduce(&identical, &allIdentical, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    return allIdentical == size;
+}
+
 void game(int h, int w, int size, int rank){
 
     int partialHeight = h / size;
@@ -120,7 +135,7 @@ void game(int h, int w, int size, int rank){
 
     filling(currentfield + w, partialHeight, h, rank);
 
-    for (size_t i = 0; i < 10; i++)
+    for (size_t i = 0; i < 100; i++)
     {
         if(rank == 0) {
             writeParallelVTK(i, w, h, w, partialHeight);
@@ -129,6 +144,11 @@ void game(int h, int w, int size, int rank){
         game_step(currentfield, newfield, partialHeight, w, size, rank);
 
         writeVTK(i, currentfield + w, "gol", w, partialHeight, w, 0, rank * partialHeight, rank);
+
+        if (check_identical(currentfield, newfield, partialHeight, w, size)) {
+            printf("STOP\n");
+            break;
+        }
 
         double* tmpField = currentfield;
         currentfield = newfield;
@@ -147,7 +167,7 @@ int main(int argc, char* argv[]) {
 
     printf("size %d, rank %d\n", size, rank);
 
-    int h = 32, w = 32;
+    int h = 16, w = 16;
 
     game(h, w, size, rank);
 
