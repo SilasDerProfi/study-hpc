@@ -83,7 +83,22 @@ void filling(double* currentfield, int h, int w, int seed){
     return;
 }
 
-void game_step(double* currentField, int partialHeight, int w, int size, int rank) {
+void evolve(double* currentField, double* nextField, int h, int w) {
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        int neighbourCount = 0;
+        for (int y1 = y - 1; y1 <= y + 1; y1++)
+          for (int x1 = x - 1; x1 <= x + 1; x1++)
+            if (x1 >= 0 && x1 < w && y1 >= -1 && y1 <= h && (x1 != x || y1 != y) && currentField[calcIndex(w, x1, y1) + w])
+              neighbourCount++;
+
+// nextField[calcIndex(w, x,y) + w] = neighbourCount;
+        nextField[calcIndex(w, x,y) + w] = neighbourCount == 3 || currentField[calcIndex(w, x,y) + w] && neighbourCount == 2;
+      }
+    }
+}
+
+void game_step(double* currentField, double* nextField, int partialHeight, int w, int size, int rank) {
     
     MPI_Request request;
     MPI_Isend(currentField + w, w, MPI_DOUBLE, ((rank - 1) + size) % size, 123, MPI_COMM_WORLD, &request);
@@ -92,6 +107,8 @@ void game_step(double* currentField, int partialHeight, int w, int size, int ran
     MPI_Status status;
     MPI_Recv(currentField, w, MPI_DOUBLE, ((rank + 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     MPI_Recv(currentField + (partialHeight + 1) * w, w, MPI_DOUBLE, ((rank - 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+    evolve(currentField, nextField, partialHeight, w);
 }
 
 void game(int h, int w, int size, int rank){
@@ -109,7 +126,7 @@ void game(int h, int w, int size, int rank){
             writeParallelVTK(i, w, h, w, partialHeight);
         }
 
-        game_step(currentfield, partialHeight, w, size, rank);
+        game_step(currentfield, newfield, partialHeight, w, size, rank);
 
         writeVTK(i, currentfield + w, "gol", w, partialHeight, w, 0, rank * partialHeight, rank);
 
