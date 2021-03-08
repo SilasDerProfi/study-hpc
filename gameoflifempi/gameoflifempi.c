@@ -63,11 +63,10 @@ void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int 
   fprintf(fp, "_");
   fwrite((unsigned char*)&nxy, sizeof(long), 1, fp);
 
-  for (y = offsetY; y < h + offsetY; y++) {
-    for (x = offsetX; x < w + offsetX; x++) {
-       float value = data[calcIndex(Gw, x,y)];
-    //   float value = calcIndex(Gw, x,y);
-      fwrite((unsigned char*)&value, sizeof(float), 1, fp);
+  for (y = 0; y < h; y++) {
+    for (x = 0; x < w; x++) {
+        float value = data[calcIndex(Gw, x,y)];
+        fwrite((unsigned char*)&value, sizeof(float), 1, fp);
     }
   }
   
@@ -76,10 +75,10 @@ void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int 
   fclose(fp);
 }
 
-void filling(double* currentfield, int h, int w){
+void filling(double* currentfield, int h, int w, int seed){
+    srand(seed * 59);
     for (size_t i = 0; i < h * w; i++) {
-      currentfield[i] = 1.;
-    //   currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0;
+      currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0;
     }
     return;
 }
@@ -101,8 +100,8 @@ void game(int h, int w, int size, int rank){
 
     double *currentfield = calloc(w*(partialHeight + 2), sizeof(double));
     double *newfield     = calloc(w*(partialHeight + 2), sizeof(double));
-  
-    // filling(currentfield + w, partialHeight, h);
+
+    filling(currentfield + w, partialHeight, h, rank);
 
     for (size_t i = 0; i < 10; i++)
     {
@@ -110,7 +109,7 @@ void game(int h, int w, int size, int rank){
             writeParallelVTK(i, w, h, w, partialHeight);
         }
 
-        // game_step(currentfield, partialHeight, w, size, rank);
+        game_step(currentfield, partialHeight, w, size, rank);
 
         writeVTK(i, currentfield + w, "gol", w, partialHeight, w, 0, rank * partialHeight, rank);
 
