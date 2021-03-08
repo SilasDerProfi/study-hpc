@@ -9,43 +9,112 @@
 #include <math.h>
 #include <sys/time.h>
 
-void evolve(){
-    
+#define calcIndex(width, x,y)  ((y)*(width) + (x))
+
+void writeParallelVTK(long timestep, int w, int h, int px, int py)
+{
+	int nx = w / px; 
+	int ny = h / py;
+	
+  char filename[2048];
+
+  snprintf(filename, sizeof(filename), "%s-%05ld%s", "parallel", timestep, ".pvti");
+  FILE *fp = fopen(filename, "w");
+
+  fprintf(fp, "<?xml version=\"1.0\"?>\n");
+  fprintf(fp, "<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
+  fprintf(fp, "<PImageData WholeExtent=\"%d %d %d %d %d %d\" Origin=\"0 0 0\" Spacing=\"%le %le %le\">\n", 0, w, 0, h, 0, 0, 1.0, 1.0, 0.0);
+  fprintf(fp, "<PCellData Scalars=\"%s\">\n", "gol");
+  fprintf(fp, "<PDataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", "gol");
+  fprintf(fp, "</PCellData>\n");
+  for (int i = 0; i < nx * ny; i++)
+  {
+    int xOffset = (i % nx) * px;
+	int yOffset = (i / nx) * py;
+
+    fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s-%d-%05ld%s\"/>", xOffset, xOffset + px, yOffset, yOffset + py, 0, 0, "gol", i, timestep, ".vti");
+  }
+
+  fprintf(fp, "</PImageData>\n");
+  fprintf(fp, "</VTKFile>\n");
+  fclose(fp);
 }
 
-void filling(int32_t* currentfield, int h, int w){
-    int32_t i;
-    for (i = 0; i < h * w; i++) {
-      currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0;
+void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int Gw, int offsetX, int offsetY, int num) {
+  char filename[2048];  
+  int x,y; 
+  
+  //int offsetX=0;
+  //int offsetY=0;
+  float deltax=1.0;
+  long  nxy = w * h * sizeof(float);  
+
+  snprintf(filename, sizeof(filename), "%s-%d-%05ld%s", prefix, num, timestep, ".vti");
+  FILE* fp = fopen(filename, "w");
+
+  fprintf(fp, "<?xml version=\"1.0\"?>\n");
+  fprintf(fp, "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n");
+  fprintf(fp, "<ImageData WholeExtent=\"%d %d %d %d %d %d\" Origin=\"0 0 0\" Spacing=\"%le %le %le\">\n", offsetX, offsetX + w, offsetY, offsetY + h, 0, 0, deltax, deltax, 0.0);
+  fprintf(fp, "<CellData Scalars=\"%s\">\n", prefix);
+  fprintf(fp, "<DataArray type=\"Float32\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n", prefix);
+  fprintf(fp, "</CellData>\n");
+  fprintf(fp, "</ImageData>\n");
+  fprintf(fp, "<AppendedData encoding=\"raw\">\n");
+  fprintf(fp, "_");
+  fwrite((unsigned char*)&nxy, sizeof(long), 1, fp);
+
+  for (y = offsetY; y < h + offsetY; y++) {
+    for (x = offsetX; x < w + offsetX; x++) {
+       float value = data[calcIndex(Gw, x,y)];
+    //   float value = calcIndex(Gw, x,y);
+      fwrite((unsigned char*)&value, sizeof(float), 1, fp);
+    }
+  }
+  
+  fprintf(fp, "\n</AppendedData>\n");
+  fprintf(fp, "</VTKFile>\n");
+  fclose(fp);
+}
+
+void filling(double* currentfield, int h, int w){
+    for (size_t i = 0; i < h * w; i++) {
+      currentfield[i] = 1.;
+    //   currentfield[i] = (rand() < RAND_MAX / 10) ? 1 : 0;
     }
     return;
 }
 
-void game_step(int32_t* currentField, int partialHeight, int w, int size, int rank) {
+void game_step(double* currentField, int partialHeight, int w, int size, int rank) {
     
     MPI_Request request;
-    MPI_Isend(currentField + w, w, MPI_INT32_T, ((rank - 1) + size) % size, 123, MPI_COMM_WORLD, &request);
-    MPI_Isend(currentField + partialHeight * w, w, MPI_INT32_T, ((rank + 1) + size) % size, 123, MPI_COMM_WORLD, &request);
+    MPI_Isend(currentField + w, w, MPI_DOUBLE, ((rank - 1) + size) % size, 123, MPI_COMM_WORLD, &request);
+    MPI_Isend(currentField + partialHeight * w, w, MPI_DOUBLE, ((rank + 1) + size) % size, 123, MPI_COMM_WORLD, &request);
 
     MPI_Status status;
-    MPI_Recv(currentField, w, MPI_INT32_T, ((rank + 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    MPI_Recv(currentField + (partialHeight + 1) * w, w, MPI_INT32_T, ((rank - 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    MPI_Recv(currentField, w, MPI_DOUBLE, ((rank + 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    MPI_Recv(currentField + (partialHeight + 1) * w, w, MPI_DOUBLE, ((rank - 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 }
 
 void game(int h, int w, int size, int rank){
 
     int partialHeight = h / size;
 
-    int32_t *currentfield = calloc(w*(partialHeight + 2), sizeof(int32_t));
-    int32_t *newfield     = calloc(w*(partialHeight + 2), sizeof(int32_t));
+    double *currentfield = calloc(w*(partialHeight + 2), sizeof(double));
+    double *newfield     = calloc(w*(partialHeight + 2), sizeof(double));
   
-    filling(currentfield + w, w, partialHeight);
+    // filling(currentfield + w, partialHeight, h);
 
     for (size_t i = 0; i < 10; i++)
     {
-        game_step(currentfield, partialHeight, w, size, rank);
+        if(rank == 0) {
+            writeParallelVTK(i, w, h, w, partialHeight);
+        }
 
-        int32_t* tmpField = currentfield;
+        // game_step(currentfield, partialHeight, w, size, rank);
+
+        writeVTK(i, currentfield + w, "gol", w, partialHeight, w, 0, rank * partialHeight, rank);
+
+        double* tmpField = currentfield;
         currentfield = newfield;
         newfield = tmpField;
     }
