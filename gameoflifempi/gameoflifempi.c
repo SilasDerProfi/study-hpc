@@ -74,9 +74,9 @@ void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int 
   fprintf(fp, "_");
   fwrite((unsigned char*)&nxy, sizeof(long), 1, fp);
 
-  for (y = 0; y < h; y++) {
-    for (x = 0; x < w; x++) {
-      float value = data[calcIndex(w, x,y)];
+  for (y = 1; y <= h; y++) {
+    for (x = 1; x <= w; x++) {
+      float value = data[calcIndex(w + 2, x,y)];
       fwrite((unsigned char*)&value, sizeof(float), 1, fp);
     }
   }
@@ -104,9 +104,9 @@ void evolve(double* currentField, double* nextField, int h, int w) {
         int neighbourCount = 0;
         for (int y1 = y - 1; y1 <= y + 1; y1++)
           for (int x1 = x - 1; x1 <= x + 1; x1++)
-            if (x1 >= 0 && x1 < w && y1 >= -1 && y1 <= h && (x1 != x || y1 != y) && currentField[calcIndex(w + 2, x1, y1)])
+            if ((x1 != x || y1 != y) && currentField[calcIndex(w + 2, x1, y1)])
               neighbourCount++;
-        // nextField[calcIndex(w + 2, x,y)] = neighbourCount == 3 || currentField[calcIndex(w + 2, x,y)] && neighbourCount == 2;
+        nextField[calcIndex(w + 2, x,y)] = neighbourCount == 3 || currentField[calcIndex(w + 2, x,y)] && neighbourCount == 2;
         // nextField[calcIndex(w + 2, x,y)] = neighbourCount;
       }
     }
@@ -209,13 +209,13 @@ void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
     for (size_t i = 0; i < 10; i++)
     {
         if(rank == 0) {
-            writeParallelVTK(i, w+4, h+4, partialWidth+2, partialHeight+2);
+            writeParallelVTK(i, w, h, partialWidth, partialHeight);
         }
 
         game_step(currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
 
         int num = coords[0] + coords[1] * dims[0];
-        writeVTK(i, currentfield, "gol", partialWidth+2, partialHeight+2, w, coords[0] * (partialWidth+2), coords[1] * (partialHeight+2), num);
+        writeVTK(i, currentfield, "gol", partialWidth, partialHeight, w, coords[0] * partialWidth, coords[1] * partialHeight, num);
 
         // if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
         //     printf("STOP\n");
