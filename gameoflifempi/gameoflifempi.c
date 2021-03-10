@@ -74,9 +74,9 @@ void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int 
   fprintf(fp, "_");
   fwrite((unsigned char*)&nxy, sizeof(long), 1, fp);
 
-  for (y = 1; y < h + 1; y++) {
-    for (x = 1; x < w + 1; x++) {
-      float value = data[calcIndex(w + 2, x,y)];
+  for (y = 0; y < h; y++) {
+    for (x = 0; x < w; x++) {
+      float value = data[calcIndex(w, x,y)];
       fwrite((unsigned char*)&value, sizeof(float), 1, fp);
     }
   }
@@ -91,6 +91,7 @@ void filling(double* currentfield, int partialHeight, int partialWidth, int seed
     for (size_t y = 0; y < partialHeight; y++) {
       for (size_t x = 0; x < partialWidth; x++) {
         currentfield[calcIndex(partialWidth + 2, x + 1, y + 1)] = (rand() < RAND_MAX / 10)? 1: 0;
+
       }
     }
     
@@ -106,7 +107,7 @@ void evolve(double* currentField, double* nextField, int h, int w) {
             if (x1 >= 0 && x1 < w && y1 >= -1 && y1 <= h && (x1 != x || y1 != y) && currentField[calcIndex(w + 2, x1, y1)])
               neighbourCount++;
         // nextField[calcIndex(w + 2, x,y)] = neighbourCount == 3 || currentField[calcIndex(w + 2, x,y)] && neighbourCount == 2;
-        nextField[calcIndex(w + 2, x,y)] = neighbourCount;
+        // nextField[calcIndex(w + 2, x,y)] = neighbourCount;
       }
     }
 }
@@ -115,8 +116,8 @@ void game_step(double* currentField, double* nextField, int partialHeight, int p
     
     int upperNeighbor, lowerNeighbor, leftNeighbor, rightNeighbor;
 
-    MPI_Cart_shift(comm_cart, 1, 1, &upperNeighbor, &lowerNeighbor);
     MPI_Cart_shift(comm_cart, 0, 1, &leftNeighbor, &rightNeighbor);
+    MPI_Cart_shift(comm_cart, 1, 1, &upperNeighbor, &lowerNeighbor);
 
     int w = partialWidth + 2;
     int h = partialHeight + 2;
@@ -168,10 +169,10 @@ void game_step(double* currentField, double* nextField, int partialHeight, int p
     MPI_Isend(currentField, 1, gl_lower_inner, lowerNeighbor, 123, comm_cart, &request);
 
     MPI_Status status;
-    MPI_Recv(currentField, 1, gl_left_outer, leftNeighbor, MPI_ANY_TAG, comm_cart, &status);
-    MPI_Recv(currentField, 1, gl_right_outer, rightNeighbor, MPI_ANY_TAG, comm_cart, &status);
-    MPI_Recv(currentField, 1, gl_upper_outer, upperNeighbor, MPI_ANY_TAG, comm_cart, &status);
-    MPI_Recv(currentField, 1, gl_lower_outer, lowerNeighbor, MPI_ANY_TAG, comm_cart, &status);
+    MPI_Recv(currentField, 1, gl_right_outer, leftNeighbor, MPI_ANY_TAG, comm_cart, &status);
+    MPI_Recv(currentField, 1, gl_left_outer, rightNeighbor, MPI_ANY_TAG, comm_cart, &status);
+    MPI_Recv(currentField, 1, gl_lower_outer, upperNeighbor, MPI_ANY_TAG, comm_cart, &status);
+    MPI_Recv(currentField, 1, gl_upper_outer, lowerNeighbor, MPI_ANY_TAG, comm_cart, &status);
 
     evolve(currentField, nextField, partialHeight, partialWidth);
 }
@@ -208,13 +209,13 @@ void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
     for (size_t i = 0; i < 10; i++)
     {
         if(rank == 0) {
-            writeParallelVTK(i, w, h, partialWidth, partialHeight);
+            writeParallelVTK(i, w+4, h+4, partialWidth+2, partialHeight+2);
         }
 
         game_step(currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
 
         int num = coords[0] + coords[1] * dims[0];
-        writeVTK(i, currentfield, "gol", partialWidth, partialHeight, w, coords[0] * partialWidth, coords[1] * partialHeight, num);
+        writeVTK(i, currentfield, "gol", partialWidth+2, partialHeight+2, w, coords[0] * (partialWidth+2), coords[1] * (partialHeight+2), num);
 
         // if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
         //     printf("STOP\n");
