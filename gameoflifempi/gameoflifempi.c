@@ -11,6 +11,17 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
+void show(double* currentfield, int w, int h) {
+  printf("\033[H");
+  int x,y;
+  for (y = 0; y < h; y++) {
+    for (x = 0; x < w; x++) printf(currentfield[calcIndex(w, x,y)] ? "\033[07m  \033[m" : "  ");
+    //printf("\033[E");
+    printf("\n");
+  }
+  fflush(stdout);
+}
+
 void writeParallelVTK(long timestep, int w, int h, int px, int py)
 {
 	int nx = w / px; 
@@ -63,9 +74,9 @@ void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int 
   fprintf(fp, "_");
   fwrite((unsigned char*)&nxy, sizeof(long), 1, fp);
 
-  for (y = 0; y < h; y++) {
-    for (x = 0; x < w; x++) {
-      float value = data[calcIndex(Gw, x,y)];
+  for (y = 1; y < h + 1; y++) {
+    for (x = 1; x < w + 1; x++) {
+      float value = data[calcIndex(w + 2, x,y)];
       fwrite((unsigned char*)&value, sizeof(float), 1, fp);
     }
   }
@@ -79,9 +90,10 @@ void filling(double* currentfield, int partialHeight, int partialWidth, int seed
     srand(seed * 59 + 984);
     for (size_t y = 0; y < partialHeight; y++) {
       for (size_t x = 0; x < partialWidth; x++) {
-        currentfield[calcIndex(partialWidth + 2, x + 1, y + 1)] = (rand() < RAND_MAX / 10) ? 1 : 0;
+        currentfield[calcIndex(partialWidth + 2, x + 1, y + 1)] = (rand() < RAND_MAX / 10)? 1: 0;
       }
     }
+    
     return;
 }
 
@@ -93,7 +105,8 @@ void evolve(double* currentField, double* nextField, int h, int w) {
           for (int x1 = x - 1; x1 <= x + 1; x1++)
             if (x1 >= 0 && x1 < w && y1 >= -1 && y1 <= h && (x1 != x || y1 != y) && currentField[calcIndex(w + 2, x1, y1)])
               neighbourCount++;
-        nextField[calcIndex(w + 2, x,y)] = neighbourCount == 3 || currentField[calcIndex(w + 2, x,y)] && neighbourCount == 2;
+        // nextField[calcIndex(w + 2, x,y)] = neighbourCount == 3 || currentField[calcIndex(w + 2, x,y)] && neighbourCount == 2;
+        nextField[calcIndex(w + 2, x,y)] = neighbourCount;
       }
     }
 }
@@ -192,7 +205,7 @@ void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
     int coords[2];
     MPI_Cart_coords(comm_cart, rank, 2, coords);
 
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < 10; i++)
     {
         if(rank == 0) {
             writeParallelVTK(i, w, h, partialWidth, partialHeight);
@@ -201,7 +214,7 @@ void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
         game_step(currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
 
         int num = coords[0] + coords[1] * dims[0];
-        writeVTK(i, currentfield + w, "gol", partialWidth, partialHeight, w, coords[0] * partialWidth, coords[1] * partialHeight, num);
+        writeVTK(i, currentfield, "gol", partialWidth, partialHeight, w, coords[0] * partialWidth, coords[1] * partialHeight, num);
 
         // if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
         //     printf("STOP\n");
