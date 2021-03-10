@@ -40,7 +40,7 @@ void writeParallelVTK(long timestep, int w, int h, int px, int py)
   fclose(fp);
 }
 
-void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int Gw, int offsetX, int offsetY, int num) {
+void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int Gw, int offsetX, int offsetY, int num, MPI_Comm comm_cart) {
   char filename[2048];  
   int x,y; 
   
@@ -65,8 +65,8 @@ void writeVTK(long timestep, double *data, char prefix[1024], int w, int h, int 
 
   for (y = 0; y < h; y++) {
     for (x = 0; x < w; x++) {
-        float value = data[calcIndex(Gw, x,y)];
-        fwrite((unsigned char*)&value, sizeof(float), 1, fp);
+      float value = data[calcIndex(Gw, x,y)];
+      fwrite((unsigned char*)&value, sizeof(float), 1, fp);
     }
   }
   
@@ -97,15 +97,21 @@ void evolve(double* currentField, double* nextField, int h, int w) {
     }
 }
 
-void game_step(double* currentField, double* nextField, int partialHeight, int w, int size, int rank) {
+void game_step(double* currentField, double* nextField, int partialHeight, int w, int size, int rank,  MPI_Comm comm_cart) {
     
+    int upperNeighbor, lowerNeighbor;
+
+    MPI_Cart_shift(comm_cart, 0, 1, &upperNeighbor, &lowerNeighbor);
+
+    printf("u: %d\tl: %d\n", upperNeighbor, lowerNeighbor);
+
     MPI_Request request;
-    MPI_Isend(currentField + w, w, MPI_DOUBLE, ((rank - 1) + size) % size, 123, MPI_COMM_WORLD, &request);
-    MPI_Isend(currentField + partialHeight * w, w, MPI_DOUBLE, ((rank + 1) + size) % size, 123, MPI_COMM_WORLD, &request);
+    MPI_Isend(currentField + w, w, MPI_DOUBLE, upperNeighbor, 123, comm_cart, &request);
+    MPI_Isend(currentField + partialHeight * w, w, MPI_DOUBLE, lowerNeighbor, 123, comm_cart, &request);
 
     MPI_Status status;
-    MPI_Recv(currentField, w, MPI_DOUBLE, ((rank + 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    MPI_Recv(currentField + (partialHeight + 1) * w, w, MPI_DOUBLE, ((rank - 1) + size) % size, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    MPI_Recv(currentField, w, MPI_DOUBLE, lowerNeighbor, MPI_ANY_TAG, comm_cart, &status);
+    MPI_Recv(currentField + (partialHeight + 1) * w, w, MPI_DOUBLE, upperNeighbor, MPI_ANY_TAG, comm_cart, &status);
 
     evolve(currentField, nextField, partialHeight, w);
 }
@@ -126,7 +132,7 @@ bool check_identical(double* currentField, double* nextField, int partialHeight,
     return allIdentical == size;
 }
 
-void game(int h, int w, int size, int rank){
+void game(int h, int w, int size, int rank, MPI_Comm comm_cart){
 
     int partialHeight = h / size;
 
@@ -141,9 +147,9 @@ void game(int h, int w, int size, int rank){
             writeParallelVTK(i, w, h, w, partialHeight);
         }
 
-        game_step(currentfield, newfield, partialHeight, w, size, rank);
+        game_step(currentfield, newfield, partialHeight, w, size, rank, comm_cart);
 
-        writeVTK(i, currentfield + w, "gol", w, partialHeight, w, 0, rank * partialHeight, rank);
+        writeVTK(i, currentfield + w, "gol", w, partialHeight, w, 0, rank * partialHeight, rank, comm_cart);
 
         if (check_identical(currentfield, newfield, partialHeight, w, size)) {
             printf("STOP\n");
@@ -167,9 +173,19 @@ int main(int argc, char* argv[]) {
 
     printf("size %d, rank %d\n", size, rank);
 
+    int* dims = malloc(sizeof(int));
+    dims[0] = 4;
+
+    int* periods = malloc(sizeof(int));
+    periods[0] = 1;
+
+    MPI_Comm comm_cart;
+
+    MPI_Cart_create(MPI_COMM_WORLD, 1, dims, periods, false, &comm_cart);
+
     int h = 16, w = 16;
 
-    game(h, w, size, rank);
+    game(h, w, size, rank, comm_cart);
 
     MPI_Finalize();
     return 0;
