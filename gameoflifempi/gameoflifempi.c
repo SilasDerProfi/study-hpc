@@ -200,7 +200,8 @@ void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
 
         game_step(currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
 
-        writeVTK(i, currentfield + w, "gol", partialWidth, partialHeight, w, coords[0] * partialWidth, coords[1] * partialHeight, rank);
+        int num = coords[0] + coords[1] * dims[0];
+        writeVTK(i, currentfield + w, "gol", partialWidth, partialHeight, w, coords[0] * partialWidth, coords[1] * partialHeight, num);
 
         // if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
         //     printf("STOP\n");
