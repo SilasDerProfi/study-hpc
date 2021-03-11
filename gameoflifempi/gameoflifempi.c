@@ -11,6 +11,65 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
+void writeVTK_MPI(size_t timestep, char prefix[1024], double* currentfield, int threadX, int threadY, int partialWidth, int partialHeight, int width, int height, int rank) {
+
+  long nxy = width * height * sizeof(double); 
+
+  MPI_File file;
+
+  char filename[2048];
+  snprintf(filename, sizeof(filename), "%s-%ld.vti", prefix, timestep);
+
+  char header[2048];
+  snprintf(header, sizeof(header), 
+    "<?xml version=\"1.0\"?>\n"
+    "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt64\">\n"
+    "<ImageData WholeExtent=\"%d %d %d %d 0 0\" Origin=\"0 0 0\" Spacing=\"1.0 1.0 0.0\">\n"
+    "<CellData Scalars=\"%s\">\n"
+    "<DataArray type=\"Float64\" Name=\"%s\" format=\"appended\" offset=\"0\"/>\n"
+    "</CellData>\n"
+    "</ImageData>\n"
+    "<AppendedData encoding=\"raw\">\n"
+    "_", 0, width, 0, height, prefix, prefix);
+
+  char footer[128];
+  snprintf(footer, sizeof(footer), "\n</AppendedData>\n</VTKFile>");
+
+  MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file);
+
+  int headerSize = strlen(header);
+  int footerSize = strlen(footer);
+
+  if(rank == 0) {
+    int contentLength = width * height * sizeof(double);
+    MPI_File_write(file, header, headerSize, MPI_CHAR, MPI_STATUS_IGNORE);
+    MPI_File_write(file, &nxy, 1, MPI_LONG, MPI_STATUS_IGNORE);
+    MPI_File_seek(file, headerSize + sizeof(nxy) + contentLength, MPI_SEEK_SET);
+    MPI_File_write(file, footer, footerSize, MPI_CHAR, MPI_STATUS_IGNORE);
+  }
+
+  MPI_Datatype fileType, fieldType;
+  int fieldSizes[2] = {height, width};
+  int partialSizes[2] = {partialHeight, partialWidth};
+  int memorySizes[2] = {partialHeight + 2, partialWidth + 2};
+  int startIndices[2];
+
+  startIndices[0] = threadY * partialHeight;
+  startIndices[1] = threadX * partialWidth;
+  MPI_Type_create_subarray(2, fieldSizes, partialSizes, startIndices, MPI_ORDER_C, MPI_DOUBLE, &fileType);
+  MPI_Type_commit(&fileType);
+
+  startIndices[0] = 1;
+  startIndices[1] = 1;
+  MPI_Type_create_subarray(2, memorySizes, partialSizes, startIndices, MPI_ORDER_C, MPI_DOUBLE, &fieldType);
+  MPI_Type_commit(&fieldType);
+
+  MPI_File_set_view(file, headerSize + sizeof(nxy), MPI_DOUBLE, fileType, "native", MPI_INFO_NULL);
+  MPI_File_write_all(file, currentfield, 1, fieldType, MPI_STATUS_IGNORE);
+
+  MPI_File_close(&file);
+}
+
 void show(double* currentfield, int w, int h) {
   printf("\033[H");
   int x,y;
@@ -206,21 +265,16 @@ void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
     int coords[2];
     MPI_Cart_coords(comm_cart, rank, 2, coords);
 
-    for (size_t i = 0; i < 10; i++)
+    for (size_t i = 0; i < 100; i++)
     {
-        if(rank == 0) {
-            writeParallelVTK(i, w, h, partialWidth, partialHeight);
-        }
-
         game_step(currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
 
-        int num = coords[0] + coords[1] * dims[0];
-        writeVTK(i, currentfield, "gol", partialWidth, partialHeight, w, coords[0] * partialWidth, coords[1] * partialHeight, num);
+        writeVTK_MPI(i, "gol", currentfield, coords[0], coords[1], partialWidth, partialHeight, w, h, rank);
 
-        // if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
-        //     printf("STOP\n");
-        //     break;
-        // }
+        if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
+            printf("STOP\n");
+            break;
+        }
 
         double* tmpField = currentfield;
         currentfield = newfield;
