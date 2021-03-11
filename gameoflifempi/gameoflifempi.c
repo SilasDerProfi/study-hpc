@@ -252,7 +252,7 @@ bool check_identical(double* currentField, double* nextField, int partialHeight,
     return allIdentical == size;
 }
 
-void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
+void game(int time_steps, int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
 
     int partialHeight = h / dims[1];
     int partialWidth = w / dims[0];
@@ -265,16 +265,16 @@ void game(int h, int w, int* dims, int rank, int size, MPI_Comm comm_cart){
     int coords[2];
     MPI_Cart_coords(comm_cart, rank, 2, coords);
 
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < time_steps; i++)
     {
         game_step(currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
 
-        writeVTK_MPI(i, "gol", currentfield, coords[0], coords[1], partialWidth, partialHeight, w, h, rank);
+        // writeVTK_MPI(i, "gol", currentfield, coords[0], coords[1], partialWidth, partialHeight, w, h, rank);
 
-        if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
-            printf("STOP\n");
-            break;
-        }
+        // if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
+        //     printf("STOP\n");
+        //     break;
+        // }
 
         double* tmpField = currentfield;
         currentfield = newfield;
@@ -291,12 +291,30 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    printf("size %d, rank %d\n", size, rank);
+    int tS = 32, nX = 8, nY = 8, pX = 2, pY = 2;
+
+    if (argc > 1) tS = atoi(argv[1]); ///< read nX
+
+    if (argc > 2) nX = atoi(argv[2]); ///< read nX
+    if (argc > 3) nY = atoi(argv[3]); ///< read nY
+
+    if (argc > 4) pX = atoi(argv[4]); ///< read pX
+    if (argc > 5) pY = atoi(argv[5]); ///< read pY
+
+    int h = nY * pY;
+    int w = nX * pX;
+
+    // printf("size %d, rank %d\n", size, rank);
 
     int dims[2];
-    dims[0] = 0;
-    dims[1] = 0;
-    MPI_Dims_create(size, 2, dims);
+    if(argc > 5) {
+      dims[0] = pY;
+      dims[1] = pX;
+    }else {
+      dims[0] = 0;
+      dims[1] = 0;
+      MPI_Dims_create(size, 2, dims);
+    }
 
     int periods[2] = {true, true};
 
@@ -304,9 +322,7 @@ int main(int argc, char* argv[]) {
 
     MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, true, &comm_cart);
 
-    int h = 16, w = 16;
-
-    game(h, w, dims, rank, size, comm_cart);
+    game(tS, h, w, dims, rank, size, comm_cart);
 
     MPI_Comm_free(&comm_cart);
 
