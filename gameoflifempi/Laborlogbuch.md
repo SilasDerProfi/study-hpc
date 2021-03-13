@@ -11,3 +11,6 @@
 ## Aufgabe 2
 * Verhältnis von nX & pX hat keine so großen Auswirkungen wie bei openMp
 * 4 x Größeres Spielfeld braucht ca. 4 x mehr Zeit
+
+
+### Speedup Chart
