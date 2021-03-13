@@ -14,3 +14,4 @@
 
 
 ### Speedup Chart
+![speedup chart for different game-sizes](spedupchartmpi.png)
