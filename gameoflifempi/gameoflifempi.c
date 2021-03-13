@@ -11,6 +11,10 @@
 
 #define calcIndex(width, x,y)  ((y)*(width) + (x))
 
+MPI_Datatype fileType, fieldType;
+MPI_Datatype gl_left_outer, gl_right_outer, gl_upper_outer, gl_lower_outer;
+MPI_Datatype gl_left_inner, gl_right_inner, gl_upper_inner, gl_lower_inner;
+
 void writeVTK_MPI(size_t timestep, char prefix[1024], double* currentfield, int threadX, int threadY, int partialWidth, int partialHeight, int width, int height, int rank) {
 
   long nxy = width * height * sizeof(double); 
@@ -48,21 +52,23 @@ void writeVTK_MPI(size_t timestep, char prefix[1024], double* currentfield, int 
     MPI_File_write(file, footer, footerSize, MPI_CHAR, MPI_STATUS_IGNORE);
   }
 
-  MPI_Datatype fileType, fieldType;
+  
   int fieldSizes[2] = {height, width};
   int partialSizes[2] = {partialHeight, partialWidth};
   int memorySizes[2] = {partialHeight + 2, partialWidth + 2};
   int startIndices[2];
 
-  startIndices[0] = threadY * partialHeight;
-  startIndices[1] = threadX * partialWidth;
-  MPI_Type_create_subarray(2, fieldSizes, partialSizes, startIndices, MPI_ORDER_C, MPI_DOUBLE, &fileType);
-  MPI_Type_commit(&fileType);
+  if(timestep == 0) {
+    startIndices[0] = threadY * partialHeight;
+    startIndices[1] = threadX * partialWidth;
+    MPI_Type_create_subarray(2, fieldSizes, partialSizes, startIndices, MPI_ORDER_C, MPI_DOUBLE, &fileType);
+    MPI_Type_commit(&fileType);
 
-  startIndices[0] = 1;
-  startIndices[1] = 1;
-  MPI_Type_create_subarray(2, memorySizes, partialSizes, startIndices, MPI_ORDER_C, MPI_DOUBLE, &fieldType);
-  MPI_Type_commit(&fieldType);
+    startIndices[0] = 1;
+    startIndices[1] = 1;
+    MPI_Type_create_subarray(2, memorySizes, partialSizes, startIndices, MPI_ORDER_C, MPI_DOUBLE, &fieldType);
+    MPI_Type_commit(&fieldType);
+  }
 
   MPI_File_set_view(file, headerSize + sizeof(nxy), MPI_DOUBLE, fileType, "native", MPI_INFO_NULL);
   MPI_File_write_all(file, currentfield, 1, fieldType, MPI_STATUS_IGNORE);
@@ -171,55 +177,54 @@ void evolve(double* currentField, double* nextField, int h, int w) {
     }
 }
 
-void game_step(double* currentField, double* nextField, int partialHeight, int partialWidth, int rank,  MPI_Comm comm_cart) {
+void game_step(size_t timestep, double* currentField, double* nextField, int partialHeight, int partialWidth, int rank,  MPI_Comm comm_cart) {
     
     int upperNeighbor, lowerNeighbor, leftNeighbor, rightNeighbor;
 
     MPI_Cart_shift(comm_cart, 0, 1, &leftNeighbor, &rightNeighbor);
     MPI_Cart_shift(comm_cart, 1, 1, &upperNeighbor, &lowerNeighbor);
 
-    int w = partialWidth + 2;
-    int h = partialHeight + 2;
+    if(timestep == 0) {
+      int w = partialWidth + 2;
+      int h = partialHeight + 2;
 
-    int gSizes[2] = {h, w};
-    int lSizesX[2] = {h, 1};
-    int lSizesY[2] = {1, w};
+      int gSizes[2] = {h, w};
+      int lSizesX[2] = {h, 1};
+      int lSizesY[2] = {1, w};
 
-    MPI_Datatype gl_left_outer, gl_right_outer, gl_upper_outer, gl_lower_outer;
-    MPI_Datatype gl_left_inner, gl_right_inner, gl_upper_inner, gl_lower_inner;
+      int startIndices[2] = {0,0};
+      MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_left_outer);
+      MPI_Type_commit(&gl_left_outer);
 
-    int startIndices[2] = {0,0};
-    MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_left_outer);
-    MPI_Type_commit(&gl_left_outer);
+      startIndices[1] = 1;
+      MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_left_inner);
+      MPI_Type_commit(&gl_left_inner);
 
-    startIndices[1] = 1;
-    MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_left_inner);
-    MPI_Type_commit(&gl_left_inner);
+      startIndices[1] = w - 1;
+      MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_right_outer);
+      MPI_Type_commit(&gl_right_outer);
 
-    startIndices[1] = w - 1;
-    MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_right_outer);
-    MPI_Type_commit(&gl_right_outer);
+      startIndices[1] = w - 2;
+      MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_right_inner);
+      MPI_Type_commit(&gl_right_inner);
 
-    startIndices[1] = w - 2;
-    MPI_Type_create_subarray(2, gSizes, lSizesX, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_right_inner);
-    MPI_Type_commit(&gl_right_inner);
+      startIndices[0] = 0;
+      startIndices[1] = 0;
+      MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_upper_outer);
+      MPI_Type_commit(&gl_upper_outer);
 
-    startIndices[0] = 0;
-    startIndices[1] = 0;
-    MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_upper_outer);
-    MPI_Type_commit(&gl_upper_outer);
+      startIndices[0] = 1;
+      MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_upper_inner);
+      MPI_Type_commit(&gl_upper_inner);
 
-    startIndices[0] = 1;
-    MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_upper_inner);
-    MPI_Type_commit(&gl_upper_inner);
+      startIndices[0] = h - 1;
+      MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_lower_outer);
+      MPI_Type_commit(&gl_lower_outer);
 
-    startIndices[0] = h - 1;
-    MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_lower_outer);
-    MPI_Type_commit(&gl_lower_outer);
-
-    startIndices[0] = h - 2;
-    MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_lower_inner);
-    MPI_Type_commit(&gl_lower_inner);
+      startIndices[0] = h - 2;
+      MPI_Type_create_subarray(2, gSizes, lSizesY, startIndices, MPI_ORDER_C, MPI_DOUBLE, &gl_lower_inner);
+      MPI_Type_commit(&gl_lower_inner);
+    }
 
     MPI_Request request;
     MPI_Isend(currentField, 1, gl_left_inner, leftNeighbor, 123, comm_cart, &request);
@@ -267,14 +272,14 @@ void game(int time_steps, int h, int w, int* dims, int rank, int size, MPI_Comm 
 
     for (size_t i = 0; i < time_steps; i++)
     {
-        game_step(currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
+        game_step(i, currentfield, newfield, partialHeight, partialWidth, rank, comm_cart);
 
-        // writeVTK_MPI(i, "gol", currentfield, coords[0], coords[1], partialWidth, partialHeight, w, h, rank);
+        writeVTK_MPI(i, "gol", currentfield, coords[0], coords[1], partialWidth, partialHeight, w, h, rank);
 
-        // if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
-        //     printf("STOP\n");
-        //     break;
-        // }
+        if (check_identical(currentfield, newfield, partialHeight, partialWidth, size)) {
+            printf("STOP\n");
+            break;
+        }
 
         double* tmpField = currentfield;
         currentfield = newfield;
